@@ -43,12 +43,22 @@ docker run -d --name WeChatBotHub -p 8000:8000 WeChatBotHub:v1.0
 ```bash
 # .env
 # redis地址
-REDIS_HOST = xxxxx
+REDIS_HOST=xxxxx
 # redis端口
-REDIS_PORT = 6379
+REDIS_PORT=6379
 # redis用户
-REDIS_USER = xxxxx
+REDIS_USER=xxxxx
 # redis密码
-REDIS_PASSWORD = xxxxx
+REDIS_PASSWORD=xxxxx
 # redis库
-REDIS_DB = 0
+REDIS_DB=0
+#mysql地址
+MYSQL_HOST=xxxxx
+#mysql端口
+MYSQL_PORT=3306
+#mysql用户
+MYSQL_USER=xxxxx
+#mysql密码
+MYSQL_PASSWORD=xxxxx
+#mysql库
+MYSQL_DB=xxxxx
