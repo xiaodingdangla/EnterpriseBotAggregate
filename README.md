@@ -62,3 +62,7 @@ MYSQL_USER=xxxxx
 MYSQL_PASSWORD=xxxxx
 #mysql库
 MYSQL_DB=xxxxx
+```
+
+## 接口文档
+api文档地址：https://apifox.com/apidoc/shared-7ce7159b-4f6e-4a16-b27b-2eb6bc18f910

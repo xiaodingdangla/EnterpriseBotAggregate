@@ -1,16 +1,131 @@
-# 这是一个示例 Python 脚本。
+import json
+import uvicorn
+from fastapi import FastAPI, Depends, Body
+from contextlib import asynccontextmanager
+from mysql.connector import cursor
 
-# 按 Shift+F10 执行或将其替换为您的代码。
-# 按 双击 Shift 在所有地方搜索类、文件、工具窗口、操作和设置。
+import schemas
+from db import get_db, get_redis
+from scheduler import scheduler
 
 
-def print_hi(name):
-    # 在下面的代码行中使用断点来调试脚本。
-    print(f'Hi, {name}')  # 按 Ctrl+F8 切换断点。
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print('启动调度器')
+    scheduler.start()
+    yield
+    print('关闭调度器')
+    scheduler.shutdown()
 
 
-# 按装订区域中的绿色按钮以运行脚本。
+app = FastAPI(lifespan=lifespan)
+
+
+# 获取机器人列表
+@app.get("/robot/list", response_model=schemas.RobotDataResponse, tags=["robot"], summary="获取机器人列表")
+def robot_list(db: cursor = Depends(get_db)):
+    with db as db_client:
+        db_client.execute("SELECT * FROM BotInformation")
+        result = db_client.fetchall()
+    if result:
+        data = [dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], row)) for row in
+                result]
+        return {"code": 200, "msg": "success", "data": data}
+    else:
+        return {"code": 400, "msg": "failed", "data": "null"}
+
+
+# 新增机器人
+@app.post("/robot/add", response_model=schemas.RobotDataResponseInfo, tags=["robot"], summary="新增机器人")
+def robot_add(
+        bot_name: str = Body(..., embed=True),
+        bot_key: str = Body(..., embed=True),
+        db: cursor = Depends(get_db)
+):
+    with db as db_client:
+        db_client.execute("INSERT INTO BotInformation (BotName, BotKey) VALUES (%s, %s)", (bot_name, bot_key))
+        # 数据插入后，需要commit才能生效
+        db_client.execute("commit")
+        db_client.execute("SELECT * FROM BotInformation WHERE BotName = %s", (bot_name,))
+        result = db_client.fetchone()
+    if result:
+        data = dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], result))
+        return {"code": 200, "msg": "success", "data": data}
+    else:
+        return {"code": 400, "msg": "failed", "data": "null"}
+
+
+# 获取机器人信息
+@app.get("/robot/info", tags=["robot"], summary="获取机器人信息")
+def robot_info(bot_id: int, db: cursor = Depends(get_db)):
+    with db as db_client:
+        db_client.execute("SELECT * FROM BotInformation WHERE BotID = %s", (bot_id,))
+        result = db_client.fetchone()
+    if result:
+        data = dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], result))
+        return {"code": 200, "msg": "success", "data": data}
+    else:
+        return {"code": 400, "msg": "failed", "data": "null"}
+
+
+# 删除机器人
+@app.delete("/robot/delete", tags=["robot"], summary="删除机器人")
+def robot_delete(bot_id: int, db: cursor = Depends(get_db)):
+    with db as db_client:
+        db_client.execute("SELECT * FROM BotInformation WHERE BotID = %s", (bot_id,))
+        result = db_client.fetchone()
+        if result:
+            db_client.execute("DELETE FROM BotInformation WHERE BotID = %s", (bot_id,))
+            db_client.execute("commit")
+            return {"code": 200, "msg": "success", "data": "null"}
+        else:
+            return {"code": 400, "msg": "failed", "data": "null"}
+
+
+# 随机获取机器人,要求机器人状态为1,并且消息数小于20
+@app.get("/robot/random", tags=["robot"], summary="随机获取机器人")
+def robot_random(db: cursor = Depends(get_db)):
+    with db as db_client:
+        db_client.execute(
+            "SELECT * FROM BotInformation WHERE BotStatus = 1 AND MessageCount < 20 ORDER BY RAND() LIMIT 1")
+        result = db_client.fetchone()
+    if result:
+        data = dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], result))
+        return {"code": 200, "msg": "success", "data": data}
+    else:
+        return {"code": 400, "msg": "failed", "data": "null"}
+
+
+# 发送消息, 把消息存入redis
+@app.post("/message/send", tags=["message"], summary="发送消息", response_model_exclude_unset=True)
+async def message_send(
+        msgtype: str = Body(..., embed=True),
+        content: str = Body(..., embed=True),
+        redis: cursor = Depends(get_redis)
+):
+    # 判断消息类型是否为text或markdown,如果不是则返回错误
+    if msgtype != "text" and msgtype != "markdown":
+        return {"code": 400, "msg": "failed", "data": "msg type error"}
+    # 判断content是否为空,如果为空则返回错误
+    if not content:
+        return {"code": 400, "msg": "failed", "data": "content is null"}
+    # 判断消息长度是否超过2048,如果超过则返回错误
+    if len(content) > 2048:
+        return {"code": 400, "msg": "failed", "data": "content length error"}
+
+    # 拼接消息信息
+    message = {
+        "msgtype": msgtype,
+        "content": content
+    }
+    # 把消息转换为json格式
+    message = json.dumps(message)
+    with redis as redis_client:
+        redis_client.lpush("message", message)
+        # 获取队列长度,即消息数
+        message_count = redis_client.llen("message")
+    return {"code": 200, "msg": "success", "message_count": message_count}
+
+
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
+    uvicorn.run(app, host="0.0.0.0", port=8000)
