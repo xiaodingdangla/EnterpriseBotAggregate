@@ -1,4 +1,4 @@
-create table botinformation
+create table robot_information
 (
     BotID        int auto_increment
         primary key,
@@ -8,4 +8,3 @@ create table botinformation
     MessageCount int        default 0                   null,
     CreatedAt    timestamp  default current_timestamp() null
 );
-

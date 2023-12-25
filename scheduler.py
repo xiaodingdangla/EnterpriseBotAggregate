@@ -50,7 +50,7 @@ def clear_message_thread(thread_id):
     time.sleep(thread_id / 10)
     # 获取机器人信息
     with get_db() as db:
-        sql = "select * from botinformation where BotStatus=1 limit %s,1"
+        sql = "select * from robot_information where BotStatus=1 limit %s,1"
         db.execute(sql, (thread_id - 1,))
         bot = db.fetchone()
     bot_name = bot[1]

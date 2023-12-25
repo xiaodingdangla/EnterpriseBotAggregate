@@ -25,7 +25,7 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/robot/list", response_model=schemas.RobotDataResponse, tags=["robot"], summary="获取机器人列表")
 def robot_list(db: cursor = Depends(get_db)):
     with db as db_client:
-        db_client.execute("SELECT * FROM BotInformation")
+        db_client.execute("SELECT * FROM robot_information")
         result = db_client.fetchall()
     if result:
         data = [dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], row)) for row in
@@ -43,10 +43,10 @@ def robot_add(
         db: cursor = Depends(get_db)
 ):
     with db as db_client:
-        db_client.execute("INSERT INTO BotInformation (BotName, BotKey) VALUES (%s, %s)", (bot_name, bot_key))
+        db_client.execute("INSERT INTO robot_information (BotName, BotKey) VALUES (%s, %s)", (bot_name, bot_key))
         # 数据插入后，需要commit才能生效
         db_client.execute("commit")
-        db_client.execute("SELECT * FROM BotInformation WHERE BotName = %s", (bot_name,))
+        db_client.execute("SELECT * FROM robot_information WHERE BotName = %s", (bot_name,))
         result = db_client.fetchone()
     if result:
         data = dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], result))
@@ -59,7 +59,7 @@ def robot_add(
 @app.get("/robot/info", tags=["robot"], summary="获取机器人信息")
 def robot_info(bot_id: int, db: cursor = Depends(get_db)):
     with db as db_client:
-        db_client.execute("SELECT * FROM BotInformation WHERE BotID = %s", (bot_id,))
+        db_client.execute("SELECT * FROM robot_information WHERE BotID = %s", (bot_id,))
         result = db_client.fetchone()
     if result:
         data = dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], result))
@@ -72,10 +72,10 @@ def robot_info(bot_id: int, db: cursor = Depends(get_db)):
 @app.delete("/robot/delete", tags=["robot"], summary="删除机器人")
 def robot_delete(bot_id: int, db: cursor = Depends(get_db)):
     with db as db_client:
-        db_client.execute("SELECT * FROM BotInformation WHERE BotID = %s", (bot_id,))
+        db_client.execute("SELECT * FROM robot_information WHERE BotID = %s", (bot_id,))
         result = db_client.fetchone()
         if result:
-            db_client.execute("DELETE FROM BotInformation WHERE BotID = %s", (bot_id,))
+            db_client.execute("DELETE FROM robot_information WHERE BotID = %s", (bot_id,))
             db_client.execute("commit")
             return {"code": 200, "msg": "success", "data": "null"}
         else:
@@ -87,7 +87,7 @@ def robot_delete(bot_id: int, db: cursor = Depends(get_db)):
 def robot_random(db: cursor = Depends(get_db)):
     with db as db_client:
         db_client.execute(
-            "SELECT * FROM BotInformation WHERE BotStatus = 1 AND MessageCount < 20 ORDER BY RAND() LIMIT 1")
+            "SELECT * FROM robot_information WHERE BotStatus = 1 AND MessageCount < 20 ORDER BY RAND() LIMIT 1")
         result = db_client.fetchone()
     if result:
         data = dict(zip(["BotID", "BotName", "BotKey", "BotStatus", "MessageCount", "CreatedAt"], result))
@@ -128,4 +128,4 @@ async def message_send(
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
