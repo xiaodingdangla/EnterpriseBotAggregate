@@ -31,7 +31,7 @@ def clear_message():
     print('开始根据机器人的数量创建线程')
     # 获取机器人数量
     with get_db() as db:
-        sql = "select count(*) from botinformation where BotStatus=1"
+        sql = "select count(*) from robot_information where BotStatus=1"
         db.execute(sql)
         bot_count = db.fetchone()[0]
     if bot_count == 0:
