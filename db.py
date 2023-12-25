@@ -20,6 +20,8 @@ redis_user = env_dist.get('REDIS_USER')
 redis_password = env_dist.get('REDIS_PASSWORD')
 redis_db = env_dist.get('REDIS_DB')
 
+log_path = env_dist.get('LOG_PATH')
+
 
 def get_db_connection():
     connection = mysql.connector.connect(

@@ -7,6 +7,8 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from db import redis_host, redis_port, redis_user, redis_password, redis_db, get_db, get_redis
 from datetime import datetime
 import threading
+import logging
+logger = logging.getLogger()
 
 interval_task = {
     "jobstores": {
@@ -28,20 +30,20 @@ interval_task = {
 # 定义定时任务
 def clear_message():
     # 使用多线程执行定时任务
-    print('开始根据机器人的数量创建线程')
+    logger.info('开始根据机器人的数量创建线程')
     # 获取机器人数量
     with get_db() as db:
         sql = "select count(*) from robot_information where BotStatus=1"
         db.execute(sql)
         bot_count = db.fetchone()[0]
     if bot_count == 0:
-        print('未创建任何机器人,机器人数量为0')
+        logger.info('未创建任何机器人,机器人数量为0')
         return
     # 创建线程
     for i in range(bot_count):
         t = threading.Thread(target=clear_message_thread, args=(i,))
         t.start()
-    print("线程创建完成,共创建", bot_count, "个线程")
+    logger.info(f"线程创建完成,共创建{bot_count}个线程")
 
 
 def clear_message_thread(thread_id):
@@ -82,11 +84,11 @@ def clear_message_thread(thread_id):
             response = json.loads(requests.post(url, data=data).text)
             # 判断是否发送成功
             if response["errcode"] != 0:
-                print(f"{bot_name}消息发送失败,错误代码:{response['errcode']},错误信息:{response['errmsg']}")
+                logger.error(f"{bot_name}消息发送失败,错误代码:{response['errcode']},错误信息:{response['errmsg']}")
                 # 把消息重新放入队列
                 redis.lpush("message", json.dumps(message))
                 break
-    print(f"线程{thread_id}执行完成")
+    logger.info(f"线程{thread_id}执行完成")
 
 
 scheduler = AsyncIOScheduler(**interval_task)

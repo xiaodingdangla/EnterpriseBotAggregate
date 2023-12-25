@@ -1,25 +1,57 @@
 import json
 import uvicorn
+import logging
 from fastapi import FastAPI, Depends, Body
 from contextlib import asynccontextmanager
 from mysql.connector import cursor
 
 import schemas
-from db import get_db, get_redis
+from db import get_db, get_redis, log_path
 from scheduler import scheduler
+import random
+import string
+import time
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+fh = logging.FileHandler(filename=log_path)
+formatter = logging.Formatter(
+    "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
+)
+fh.setFormatter(formatter)
+  # 将日志输出至文件,编码为utf-8
+fh.encoding = 'utf-8'
+logger.addHandler(fh)
+logger = logging.getLogger(__name__)
+
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print('启动调度器')
+    logger.info('启动调度器')
     scheduler.start()
     yield
-    print('关闭调度器')
+    logger.info('关闭调度器')
     scheduler.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
 
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    idem = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    logger.info(f"rid={idem} start request path={request.url.path}")
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    process_time = (time.time() - start_time) * 1000
+    formatted_process_time = '{0:.2f}'.format(process_time)
+    logger.info(f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
+
+    return response
 
 # 获取机器人列表
 @app.get("/robot/list", response_model=schemas.RobotDataResponse, tags=["robot"], summary="获取机器人列表")
