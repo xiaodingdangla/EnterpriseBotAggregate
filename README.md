@@ -34,9 +34,9 @@ python main.py
 ### docker部署
 ```bash
 # 构建镜像
-docker build -t WeChatBotHub:v1.0 .
+docker build -t dang-robot:1.0.2.
 # 启动容器
-docker run -d --name WeChatBotHub -p 8000:8000 WeChatBotHub:v1.0
+docker run -d --name dang-robot -p 8000:8000 dang-robot:1.0.2
 ```
 
 ## 配置文件
@@ -62,6 +62,8 @@ MYSQL_USER=xxxxx
 MYSQL_PASSWORD=xxxxx
 #mysql库
 MYSQL_DB=xxxxx
+#日志存储路径
+LOG_PATH=/var/log/robot.log
 ```
 
 ## 接口文档
